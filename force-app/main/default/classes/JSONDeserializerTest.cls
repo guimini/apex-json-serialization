@@ -491,19 +491,19 @@ public with sharing class JSONDeserializerTest {
   @isTest
   public static void handlesObject() {
     NestedObjectProperty root = new NestedObjectProperty();
-    //https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/langCon_apex_primitives.htm
+    // https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/langCon_apex_primitives.htm
     root.lo = new List<Object>{
-      Crypto.generateAesKey(128),
       true,
       Date.newInstance(2000, 1, 1),
       Datetime.newInstance(2000, 1, 1),
       1.1,
-      2.7182818284d,
+      2889867496796748674967967496748699782898674967967496748699782898674967967496748699774967482898674967967496748699782898674967967496748699782898674967967496748699782898674967967496748699782898674967967496748699786997828986749679674967486997828986749679674967486997828986749679674967486997.718282898674967967496748699782898674967967496748699781828986749679674967486997669604d,
       (ID) '00300000003T2PGAA0',
       1,
-      2147483648L,
+      2147483623547483648L,
       'a',
-      Time.newInstance(0, 0, 0, 0)
+      Time.newInstance(1, 1, 1, 1),
+      null
     };
     root.o = 'hello there';
     String seriliazedRoot = JSON.serialize(root);
@@ -516,6 +516,8 @@ public with sharing class JSONDeserializerTest {
 
     System.Assert.areEqual(root.o, deserializedRoot.o);
     for (Integer i = 0; i < root.lo.size(); i++) {
+      String s = root.lo.get(i) + '=' + deserializedRoot.lo.get(i);
+      System.debug(s);
       System.Assert.areEqual(root.lo.get(i), deserializedRoot.lo.get(i));
     }
   }

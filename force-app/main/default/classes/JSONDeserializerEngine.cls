@@ -8,11 +8,16 @@ public with sharing class JSONDeserializerEngine {
     'Set<'
   );
 
-  public static Object deserialize(System.Type type, JSONParser parser) {
+  public static Object deserialize(String jsonString, System.Type type) {
+    JSONParserProxy parser = new JSONParserProxy(jsonString);
+    parser.nextToken(); // start reading
     return deserializeValue(type, parser);
   }
 
-  private static Object deserializeValue(System.Type type, JSONParser parser) {
+  private static Object deserializeValue(
+    System.Type type,
+    JSONParserProxy parser
+  ) {
     JSONToken token = parser.getCurrentToken();
     switch on token {
       when START_ARRAY {
@@ -31,7 +36,7 @@ public with sharing class JSONDeserializerEngine {
         if (Object.class !== type) {
           return parser.readValueAs(type);
         }
-        return deserializeObject(parser);
+        return deserializeAnyObject(parser);
       }
       // TODO, find out if that ever happens
       // when NOT_AVAILABLE, VALUE_EMBEDDED_OBJECT {
@@ -40,8 +45,10 @@ public with sharing class JSONDeserializerEngine {
       //   );
       // }
       when else {
-        Object value = parser.readValueAs(type);
-        return value;
+        if (Object.class != type) {
+          return parser.readValueAs(type);
+        }
+        return deserializeAnyPrimitive(parser);
       }
     }
   }
@@ -73,7 +80,7 @@ public with sharing class JSONDeserializerEngine {
 
   private static JSONDeserializer.Deserializable deserializeDeserializable(
     System.Type type,
-    JSONParser parser
+    JSONParserProxy parser
   ) {
     JSONToken token = parser.getCurrentToken();
     if (token != JSONToken.START_OBJECT) {
@@ -115,13 +122,71 @@ public with sharing class JSONDeserializerEngine {
     return instance;
   }
 
-  private static Object deserializeObject(JSONParser parser) {
-    return new Map<String, Object>{ 'key' => 'value' };
+  private static Object deserializeAnyObject(JSONParserProxy parser) {
+    return deserializeMap(Map<String, Object>.class, parser);
+  }
+
+  private static Object deserializeAnyPrimitive(JSONParserProxy parser) {
+    switch on parser.getCurrentToken() {
+      when VALUE_FALSE, VALUE_TRUE {
+        return parser.getBooleanValue();
+      }
+      when VALUE_NUMBER_FLOAT {
+        // try {
+        return parser.getDecimalValue(); // SEEMS TO NEVER THROW
+        // } catch (Exception e) {
+        //   return parser.getDoubleValue();
+        // }
+      }
+      when VALUE_NUMBER_INT {
+        try {
+          return parser.getIntegerValue();
+        } catch (Exception e) {
+          return parser.getLongValue();
+        }
+      }
+      when VALUE_STRING {
+        String value = parser.getText();
+        if (
+          Pattern.matches(
+            '^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})\\.(\\d{3})?(Z|[+-]\\d{2}:?\\d{2})$',
+            value
+          )
+        ) {
+          return parser.getDatetimeValue();
+        }
+        if (Pattern.matches('^(\\d{4})-(\\d{2})-(\\d{2})$', value)) {
+          return parser.getDateValue();
+        }
+        if (
+          Pattern.matches(
+            '^(\\d{2}):(\\d{2}):(\\d{2})\\.(\\d{3})?(Z|[+-]\\d{2}:?\\d{2})$',
+            value
+          )
+        ) {
+          return parser.getTimeValue();
+        }
+
+        if (value instanceof Id) {
+          return parser.getIdValue();
+        }
+
+        return parser.getText();
+      }
+      when VALUE_NULL {
+        return null;
+      }
+      when else {
+        throw new UnexpectedException(
+          'Unexpected token type : ' + parser.getCurrentToken()
+        );
+      }
+    }
   }
 
   private static Map<String, Object> deserializeMap(
     System.Type type,
-    JSONParser parser
+    JSONParserProxy parser
   ) {
     JSONToken token = parser.getCurrentToken();
     String valueTypeName = type.toString()
@@ -157,7 +222,7 @@ public with sharing class JSONDeserializerEngine {
 
   private static List<Object> deserializeList(
     System.Type type,
-    JSONParser parser
+    JSONParserProxy parser
   ) {
     JSONToken token = parser.getCurrentToken();
     String valueTypeName = type.toString()
@@ -185,7 +250,7 @@ public with sharing class JSONDeserializerEngine {
 
   private static System.Type getDeserializableType(
     System.Type type,
-    JSONParser parser
+    JSONParserProxy parser
   ) {
     if (!JSONDeserializer.Polymorph.class.isAssignableFrom(type)) {
       return type;
@@ -204,10 +269,10 @@ public with sharing class JSONDeserializerEngine {
       );
     }
 
-    JSONParser discriminationParser = parser.clone();
+    JSONParserProxy discriminationParser = new JSONParserProxy(parser);
     JSONToken discriminationToken = discriminationParser.getCurrentToken();
 
-    Object untypped = deserializeObject(discriminationParser);
+    Object untypped = deserializeAnyObject(discriminationParser);
 
     return ((JSONDeserializer.Discriminator) discriminatorType.newInstance())
       .discriminate((Map<String, Object>) untypped);

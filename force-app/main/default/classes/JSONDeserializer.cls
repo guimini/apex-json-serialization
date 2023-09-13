@@ -1,18 +1,8 @@
 global with sharing class JSONDeserializer {
-  private System.JSONParser parser;
-
-  private JSONDeserializer(String jsonString) {
-    this.parser = JSON.createParser(jsonString);
+  private JSONDeserializer() {
   }
-
-  private Object deserialize(System.Type type) {
-    parser.nextToken(); //start reading
-    return JSONDeserializerEngine.deserialize(type, this.parser);
-  }
-
   global static Object deserialize(String jsonString, System.Type type) {
-    JSONDeserializer deserializer = new JSONDeserializer(jsonString);
-    return deserializer.deserialize(type);
+    return JSONDeserializerEngine.deserialize(jsonString, type);
   }
 
   /**
