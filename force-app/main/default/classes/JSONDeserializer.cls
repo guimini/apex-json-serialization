@@ -1,5 +1,9 @@
 public with sharing class JSONDeserializer {
   private System.JSONParser parser;
+  private static final System.Type MAP_TYPE = Map<String, Object>.class;
+  private static final Pattern MAP_TYPE_VALIDATOR_PATTERN = Pattern.compile(
+    'Map<(?!String)([^,]*)'
+  );
 
   private JSONDeserializer(String jsonString) {
     this.parser = JSON.createParser(jsonString);
@@ -13,10 +17,17 @@ public with sharing class JSONDeserializer {
     return parser.readValueAs(type);
   }
 
-  private Deserializable deserializeDeserializable(System.Type type) {
+  private Map<String, Object> deserializeMap(System.Type type) {
     JSONToken token = parser.getCurrentToken();
-    Deserializable instance = (Deserializable) type.newInstance();
-    Map<String, System.Type> deserializableFields = instance.getDeserializableFields();
+    String valueTypeName = type.toString()
+      .replaceFirst('Map<String,', '')
+      .replace('>', '');
+    System.debug('valueTypeName=' + valueTypeName);
+    System.debug('type=' + type.toString());
+    System.Type valueType = System.Type.forName(valueTypeName);
+
+    Map<String, Object> instance = (Map<String, Object>) type.newInstance();
+
     if (token != JSONToken.START_OBJECT) {
       throw new UnexpectedException(
         'Expected a object start here, got ' + token
@@ -24,7 +35,55 @@ public with sharing class JSONDeserializer {
     }
     token = parser.nextToken();
     while (token != JSONToken.END_OBJECT) {
-      // read a field name, and see if we ca interpret it
+      // read a key, and see if we ca interpret it
+      if (token != JSONToken.FIELD_NAME) {
+        throw new UnexpectedException(
+          'Expected a fieldname here, got ' + token
+        );
+      }
+      String key = parser.getText();
+
+      token = parser.nextToken();
+      instance.put(key, deserializeField(valueType));
+      token = parser.nextToken();
+      continue;
+    }
+
+    return instance;
+  }
+
+  private Map<String, System.Type> getDeserializableFields(
+    Deserializable instance
+  ) {
+    Map<String, System.Type> fields = instance.getDeserializableFields();
+    for (System.Type type : fields.values()) {
+      Matcher m = MAP_TYPE_VALIDATOR_PATTERN.matcher(type.toString());
+      if (m.find()) {
+        throw new IllegalArgumentException(
+          'Unsupported Map Key Type [' +
+            m.group(1) +
+            ']. Only String indexed maps are supported'
+        );
+      }
+    }
+    return fields;
+  }
+
+  private Deserializable deserializeDeserializable(System.Type type) {
+    JSONToken token = parser.getCurrentToken();
+    if (token != JSONToken.START_OBJECT) {
+      throw new UnexpectedException(
+        'Expected a object start here, got ' + token
+      );
+    }
+    Deserializable instance = (Deserializable) type.newInstance();
+    Map<String, System.Type> deserializableFields = getDeserializableFields(
+      instance
+    );
+
+    token = parser.nextToken();
+    while (token != JSONToken.END_OBJECT) {
+      // read a field name, and see if we can interpret it
       if (token != JSONToken.FIELD_NAME) {
         throw new UnexpectedException(
           'Expected a fieldname here, got ' + token
@@ -32,11 +91,10 @@ public with sharing class JSONDeserializer {
       }
       String fieldName = parser.getText();
       if (deserializableFields.containsKey(fieldName)) {
-        System.debug('Deserializing : ' + fieldName);
         token = parser.nextToken();
         instance.setDeserializedField(
           fieldName,
-          deserializeField(instance, deserializableFields.get(fieldName))
+          deserializeField(deserializableFields.get(fieldName))
         );
         token = parser.nextToken();
         continue;
@@ -51,7 +109,7 @@ public with sharing class JSONDeserializer {
     return instance;
   }
 
-  private Object deserializeField(Deserializable instance, System.Type type) {
+  private Object deserializeField(System.Type type) {
     JSONToken token = parser.getCurrentToken();
     switch on token {
       when START_ARRAY {
@@ -60,6 +118,9 @@ public with sharing class JSONDeserializer {
         );
       }
       when START_OBJECT {
+        if (MAP_TYPE.isAssignableFrom(type)) {
+          return deserializeMap(type);
+        }
         return deserialize(type);
       }
       when NOT_AVAILABLE, VALUE_EMBEDDED_OBJECT {

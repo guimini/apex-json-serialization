@@ -4,7 +4,7 @@ public with sharing class JSONDeserializerTest {
     public String firstname;
   }
 
-  private class DeserializableClass implements JSONDeserializer.Deserializable {
+  public class DeserializableClass implements JSONDeserializer.Deserializable {
     private String firstname;
     public void setDeserializedField(String key, Object value) {
       switch on key {
@@ -23,7 +23,7 @@ public with sharing class JSONDeserializerTest {
     }
   }
 
-  private class DeserializableAllTypesClass implements JSONDeserializer.Deserializable {
+  public class DeserializableAllTypesClass implements JSONDeserializer.Deserializable {
     private String firstname;
     private Integer age;
     private ID id;
@@ -80,22 +80,36 @@ public with sharing class JSONDeserializerTest {
     }
   }
 
-  private class DeserializableChain implements JSONDeserializer.Deserializable {
-    public String name;
+  public class DeserializableChain implements JSONDeserializer.Deserializable {
+    private String name;
+    public String value {
+      get {
+        return name;
+      }
+    }
+    public Contact contact;
     public DeserializableChain next;
     public DeserializableChain() {
     }
-    public DeserializableChain(String name, DeserializableChain next) {
+    public DeserializableChain(
+      String name,
+      Contact contact,
+      DeserializableChain next
+    ) {
       this.name = name;
+      this.contact = contact;
       this.next = next;
     }
     public void setDeserializedField(String key, Object value) {
       switch on key {
-        when 'name' {
+        when 'value' {
           this.name = (String) value;
         }
         when 'next' {
           this.next = (DeserializableChain) value;
+        }
+        when 'contact' {
+          this.contact = (Contact) value;
         }
         when else {
           throw new IllegalArgumentException(
@@ -106,8 +120,55 @@ public with sharing class JSONDeserializerTest {
     }
     public Map<String, System.Type> getDeserializableFields() {
       return new Map<String, System.Type>{
-        'name' => String.class,
-        'next' => DeserializableChain.class
+        'value' => String.class,
+        'next' => DeserializableChain.class,
+        'contact' => Contact.class
+      };
+    }
+  }
+
+  public class NestedMapDeserializable implements JSONDeserializer.Deserializable {
+    public Map<String, DeserializableChain> stringIndexed;
+
+    public void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'stringIndexed' {
+          this.stringIndexed = (Map<String, DeserializableChain>) value;
+          System.debug('AssignedstringIndexed' + this.stringIndexed);
+        }
+        when else {
+          throw new IllegalArgumentException(
+            'Key [' + key + '] is not supported'
+          );
+        }
+      }
+    }
+    public Map<String, System.Type> getDeserializableFields() {
+      return new Map<String, System.Type>{
+        'stringIndexed' => Map<String, DeserializableChain>.class
+      };
+    }
+  }
+
+  public class NestedIntegerMapDeserializable implements JSONDeserializer.Deserializable {
+    public Map<Integer, DeserializableChain> integerIndexed;
+
+    public void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'integerIndexed' {
+          this.integerIndexed = (Map<Integer, DeserializableChain>) value;
+          System.debug('AssignedintegerIndexed' + this.integerIndexed);
+        }
+        when else {
+          throw new IllegalArgumentException(
+            'Key [' + key + '] is not supported'
+          );
+        }
+      }
+    }
+    public Map<String, System.Type> getDeserializableFields() {
+      return new Map<String, System.Type>{
+        'integerIndexed' => Map<Integer, DeserializableChain>.class
       };
     }
   }
@@ -196,9 +257,15 @@ public with sharing class JSONDeserializerTest {
   public static void handlesNestedDeserializables() {
     DeserializableChain chainRoot = new DeserializableChain(
       '1',
+      new Contact(LastName = '1'),
       new DeserializableChain(
         '2',
-        new DeserializableChain('3', new DeserializableChain('4', null))
+        new Contact(LastName = '2'),
+        new DeserializableChain(
+          '3',
+          new Contact(LastName = '3'),
+          new DeserializableChain('4', new Contact(LastName = '4'), null)
+        )
       )
     );
 
@@ -212,8 +279,51 @@ public with sharing class JSONDeserializerTest {
         Integer.valueOf(deserializedChain.name),
         'failed parsing name'
       );
+      Assert.areEqual(
+        i,
+        Integer.valueOf(deserializedChain.contact.LastName),
+        'failed parsing contact'
+      );
       deserializedChain = deserializedChain.next;
     }
     Assert.isNull(deserializedChain, 'more element than expected');
+  }
+
+  @isTest
+  public static void handlesMapsOfDeserializables() {
+    String serializedRoot = '{"stringIndexed":{"2":{"next":{"next":null,"value":"2","contact":null},"value":"2","contact":{"attributes":{"type":"Contact"},"LastName":"2"}},"1":{"next":{"next":null,"value":"1","contact":null},"value":"1","contact":{"attributes":{"type":"Contact"},"LastName":"1"}},"0":{"next":{"next":null,"value":"0","contact":null},"value":"0","contact":{"attributes":{"type":"Contact"},"LastName":"0"}}}}';
+    System.debug(serializedRoot);
+
+    NestedMapDeserializable deserializedRoot = (NestedMapDeserializable) JSONDeserializer.deserialize(
+      serializedRoot,
+      NestedMapDeserializable.class
+    );
+
+    for (Integer i = 0; i < 3; i++) {
+      Assert.areEqual(
+        i.format(),
+        deserializedRoot.stringIndexed.get(i.format()).name,
+        'failed parsing StringIndexed map'
+      );
+    }
+  }
+
+  @isTest
+  public static void rejectsUnsupportedMapKeys() {
+    String serializedRoot = '{"integerIndexed":{"2":{"next":{"next":null,"value":"2","contact":null},"value":"2","contact":{"attributes":{"type":"Contact"},"LastName":"2"}},"1":{"next":{"next":null,"value":"1","contact":null},"value":"1","contact":{"attributes":{"type":"Contact"},"LastName":"1"}},"0":{"next":{"next":null,"value":"0","contact":null},"value":"0","contact":{"attributes":{"type":"Contact"},"LastName":"0"}}}}';
+    System.debug(serializedRoot);
+
+    Boolean threw = false;
+    try {
+      NestedIntegerMapDeserializable deserializedRoot = (NestedIntegerMapDeserializable) JSONDeserializer.deserialize(
+        serializedRoot,
+        NestedIntegerMapDeserializable.class
+      );
+    } catch (IllegalArgumentException e) {
+      System.Assert.isTrue(e.getMessage().contains('Integer'));
+      threw = true;
+    } finally {
+      System.Assert.isTrue(threw);
+    }
   }
 }
