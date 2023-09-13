@@ -157,7 +157,6 @@ public with sharing class JSONDeserializerTest {
       switch on key {
         when 'integerIndexed' {
           this.integerIndexed = (Map<Integer, DeserializableChain>) value;
-          System.debug('AssignedintegerIndexed' + this.integerIndexed);
         }
         when else {
           throw new IllegalArgumentException(
@@ -169,6 +168,58 @@ public with sharing class JSONDeserializerTest {
     public Map<String, System.Type> getDeserializableFields() {
       return new Map<String, System.Type>{
         'integerIndexed' => Map<Integer, DeserializableChain>.class
+      };
+    }
+  }
+
+  public class NestedListAndSetDeserializable implements JSONDeserializer.Deserializable {
+    public Set<DeserializableChain> sd;
+    public List<DeserializableChain> ld;
+
+    public void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'ld' {
+          this.ld = (List<DeserializableChain>) value;
+        }
+        when 'sd' {
+          this.sd = new Set<DeserializableChain>();
+          for (DeserializableChain item : (List<DeserializableChain>) value) {
+            this.sd.add(item);
+          }
+        }
+        when else {
+          throw new IllegalArgumentException(
+            'Key [' + key + '] is not supported'
+          );
+        }
+      }
+    }
+    public Map<String, System.Type> getDeserializableFields() {
+      return new Map<String, System.Type>{
+        'ld' => List<DeserializableChain>.class,
+        'sd' => List<DeserializableChain>.class
+      };
+    }
+  }
+
+  public class NestedInvalidSetDeserializable implements JSONDeserializer.Deserializable {
+    public Set<DeserializableChain> sd;
+
+    public void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'sd' {
+          System.Assert.fail();
+        }
+        when else {
+          throw new IllegalArgumentException(
+            'Key [' + key + '] is not supported'
+          );
+        }
+      }
+    }
+    public Map<String, System.Type> getDeserializableFields() {
+      return new Map<String, System.Type>{
+        'sd' => Set<DeserializableChain>.class
       };
     }
   }
@@ -321,6 +372,63 @@ public with sharing class JSONDeserializerTest {
       );
     } catch (IllegalArgumentException e) {
       System.Assert.isTrue(e.getMessage().contains('Integer'));
+      threw = true;
+    } finally {
+      System.Assert.isTrue(threw);
+    }
+  }
+
+  @isTest
+  public static void handlesListAndSetWithCustomHandlerOfDeserializables() {
+    NestedListAndSetDeserializable root = new NestedListAndSetDeserializable();
+    root.sd = new Set<DeserializableChain>{
+      new DeserializableChain(
+        '1',
+        null,
+        new DeserializableChain('2', null, null)
+      )
+    };
+    root.ld = new List<DeserializableChain>{
+      new DeserializableChain(
+        '1',
+        null,
+        new DeserializableChain('2', null, null)
+      )
+    };
+
+    String serializedRoot = JSON.serialize(root);
+    System.debug(serializedRoot);
+
+    NestedListAndSetDeserializable deserializedRoot = (NestedListAndSetDeserializable) JSONDeserializer.deserialize(
+      serializedRoot,
+      NestedListAndSetDeserializable.class
+    );
+    System.Assert.areEqual(1, deserializedRoot.sd.size());
+    System.Assert.areEqual('2', deserializedRoot.ld[0].next.name);
+  }
+
+  @isTest
+  public static void rejectsUnsupporteSet() {
+    NestedInvalidSetDeserializable root = new NestedInvalidSetDeserializable();
+    root.sd = new Set<DeserializableChain>{
+      new DeserializableChain(
+        '1',
+        null,
+        new DeserializableChain('2', null, null)
+      )
+    };
+
+    String serializedRoot = JSON.serialize(root);
+    System.debug(serializedRoot);
+
+    Boolean threw = false;
+    try {
+      NestedInvalidSetDeserializable deserializedRoot = (NestedInvalidSetDeserializable) JSONDeserializer.deserialize(
+        serializedRoot,
+        NestedInvalidSetDeserializable.class
+      );
+    } catch (IllegalArgumentException e) {
+      System.Assert.isTrue(e.getMessage().contains('Set<ANY>'));
       threw = true;
     } finally {
       System.Assert.isTrue(threw);
