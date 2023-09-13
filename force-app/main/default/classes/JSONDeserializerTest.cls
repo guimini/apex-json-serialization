@@ -224,6 +224,33 @@ public with sharing class JSONDeserializerTest {
     }
   }
 
+  public class NestedObjectProperty implements JSONDeserializer.Deserializable {
+    public List<Object> lo;
+    public Object o;
+
+    public void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'lo' {
+          this.lo = (List<Object>) value;
+        }
+        when 'o' {
+          this.o = value;
+        }
+        when else {
+          throw new IllegalArgumentException(
+            'Key [' + key + '] is not supported'
+          );
+        }
+      }
+    }
+    public Map<String, System.Type> getDeserializableFields() {
+      return new Map<String, System.Type>{
+        'lo' => List<Object>.class,
+        'o' => Object.class
+      };
+    }
+  }
+
   @isTest
   public static void handlesSimpleClass() {
     SimpleClass simple = (SimpleClass) JSONDeserializer.deserialize(
@@ -432,6 +459,64 @@ public with sharing class JSONDeserializerTest {
       threw = true;
     } finally {
       System.Assert.isTrue(threw);
+    }
+  }
+
+  @isTest
+  public static void handlesPolymorphDeserializables() {
+    PolymorphDeserializableTest.ListPolymorphClass root = new PolymorphDeserializableTest.ListPolymorphClass();
+    root.ld = new List<PolymorphDeserializableTest>{
+      new PolymorphDeserializableTest.AVariantPolymorph('1', '1'),
+      new PolymorphDeserializableTest.BVariantPolymorph('2', '2')
+    };
+
+    String serializedRoot = JSON.serialize(root);
+    System.debug(serializedRoot);
+
+    PolymorphDeserializableTest.ListPolymorphClass deserializedRoot = (PolymorphDeserializableTest.ListPolymorphClass) JSONDeserializer.deserialize(
+      serializedRoot,
+      PolymorphDeserializableTest.ListPolymorphClass.class
+    );
+    PolymorphDeserializableTest.AVariantPolymorph a = (PolymorphDeserializableTest.AVariantPolymorph) deserializedRoot.ld.get(
+      0
+    );
+    PolymorphDeserializableTest.BVariantPolymorph b = (PolymorphDeserializableTest.BVariantPolymorph) deserializedRoot.ld.get(
+      1
+    );
+
+    System.Assert.areEqual(a.commonField, a.aField);
+    System.Assert.areEqual(b.commonField, b.bField);
+  }
+
+  @isTest
+  public static void handlesObject() {
+    NestedObjectProperty root = new NestedObjectProperty();
+    //https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/langCon_apex_primitives.htm
+    root.lo = new List<Object>{
+      Crypto.generateAesKey(128),
+      true,
+      Date.newInstance(2000, 1, 1),
+      Datetime.newInstance(2000, 1, 1),
+      1.1,
+      2.7182818284d,
+      (ID) '00300000003T2PGAA0',
+      1,
+      2147483648L,
+      'a',
+      Time.newInstance(0, 0, 0, 0)
+    };
+    root.o = 'hello there';
+    String seriliazedRoot = JSON.serialize(root);
+    System.debug(seriliazedRoot);
+
+    NestedObjectProperty deserializedRoot = (NestedObjectProperty) JSONDeserializer.deserialize(
+      seriliazedRoot,
+      NestedObjectProperty.class
+    );
+
+    System.Assert.areEqual(root.o, deserializedRoot.o);
+    for (Integer i = 0; i < root.lo.size(); i++) {
+      System.Assert.areEqual(root.lo.get(i), deserializedRoot.lo.get(i));
     }
   }
 }
