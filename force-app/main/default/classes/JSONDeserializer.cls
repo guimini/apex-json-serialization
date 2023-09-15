@@ -14,7 +14,7 @@ global with sharing class JSONDeserializer {
   }
 
   /**
-   * Using this interface, you must expose a `public class YourType.Discriminator implements JSONDeserializer`
+   * Using this interface, you must expose a `public class YourType.Discriminator implements JSONDeserializer.Discriminator`
    */
   public interface Polymorph {
   }
