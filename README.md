@@ -1,18 +1,24 @@
-# Salesforce DX Project: Next Steps
+# JSONDeserializer
 
-Now that you’ve created a Salesforce DX project, what’s next? Here are some documentation resources to get you started.
+This repo offers a better alternative to `JSON.deserialize()` and `JSON.deserializeUntypped()`
 
-## How Do You Plan to Deploy Your Changes?
+## Key Features
 
-Do you want to deploy a set of changes, or create a self-contained application? Choose a [development model](https://developer.salesforce.com/tools/vscode/en/user-guide/development-models).
+- Deserializing arbitrary keys to specific members of your `Deserializable` class : bringing a more tedious yet functionally equivalent to GSON `@SerializedName("name")` https://www.javadoc.io/doc/com.google.code.gson/gson/2.6.2/com/google/gson/annotations/SerializedName.html
 
-## Configure Your Salesforce DX Project
+- Polymorphic Deserialization : Should you need to deserialize values that may need to be deserialized to a different class depending on the content of serialized object, you may provide a `Discriminator` with your `Polymorph` `Deserializable` class
 
-The `sfdx-project.json` file contains useful configuration information for your project. See [Salesforce DX Project Configuration](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_ws_config.htm) in the _Salesforce DX Developer Guide_ for details about this file.
+- Support for `Object` typped members. Avoiding `System.JSONException: Apex Type unsupported in JSON: Object`, for there are times we simply do not know what to expect !
 
-## Read All About It
+## Deploy right away
 
-- [Salesforce Extensions Documentation](https://developer.salesforce.com/tools/vscode/)
-- [Salesforce CLI Setup Guide](https://developer.salesforce.com/docs/atlas.en-us.sfdx_setup.meta/sfdx_setup/sfdx_setup_intro.htm)
-- [Salesforce DX Developer Guide](https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_intro.htm)
-- [Salesforce CLI Command Reference](https://developer.salesforce.com/docs/atlas.en-us.sfdx_cli_reference.meta/sfdx_cli_reference/cli_reference.htm)
+<a href="https://githubsfdeploy.herokuapp.com?owner=gaelmotte&repo=apex-json-serialization">
+  <img alt="Deploy to Salesforce"
+       src="https://raw.githubusercontent.com/afawcett/githubsfdeploy/master/src/main/webapp/resources/img/deploy.png">
+</a>
+Thanks @andyinthecloud
+
+## What's next
+
+[ ] Json Serialization to arbitrary keys
+[ ] Package
