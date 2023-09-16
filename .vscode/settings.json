@@ -4,5 +4,6 @@
     "**/bower_components": true,
     "**/.sfdx": true
   },
-  "salesforcedx-vscode-core.push-or-deploy-on-save.enabled": true
+  "salesforcedx-vscode-core.push-or-deploy-on-save.enabled": true,
+  "salesforcedx-vscode-core.experimental.enableSourceTrackingForDeployAndRetrieve": true
 }

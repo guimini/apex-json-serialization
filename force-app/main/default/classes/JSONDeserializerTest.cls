@@ -251,6 +251,156 @@ public with sharing class JSONDeserializerTest {
     }
   }
 
+  public class PolymorphWithoutDiscriminator implements JSONDeserializer.Deserializable, JSONDeserializer.Polymorph {
+    public String field;
+
+    public void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'field' {
+          this.field = (String) value;
+        }
+        when else {
+          throw new IllegalArgumentException(
+            'Key [' + key + '] is not supported'
+          );
+        }
+      }
+    }
+    public Map<String, System.Type> getDeserializableFields() {
+      return new Map<String, System.Type>{ 'field' => String.class };
+    }
+  }
+
+  public abstract class PolymorphDeserializableTest implements JSONDeserializer.Deserializable, JSONDeserializer.Polymorph {
+    public String type;
+    public String commonField;
+    public Map<String, Object> ignoredField = new Map<String, Object>{
+      'someKey' => 'ignoredValue'
+    };
+
+    public PolymorphDeserializableTest() {
+    }
+    public PolymorphDeserializableTest(String commonField) {
+      this.commonField = commonField;
+    }
+
+    public virtual void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'commonField' {
+          this.commonField = (String) value;
+        }
+        when else {
+          throw new IllegalArgumentException(
+            'Key [' + key + '] is not supported'
+          );
+        }
+      }
+    }
+    public virtual Map<String, System.Type> getDeserializableFields() {
+      return new Map<String, System.Type>{ 'commonField' => String.class };
+    }
+  }
+  public class PolymorphDeserializableTestDiscriminator implements JSONDeserializer.Discriminator {
+    public System.Type discriminate(Map<String, Object> untyppedMap) {
+      if (untyppedMap.get('type') == 'a') {
+        return AVariantPolymorph.class;
+      }
+      return BVariantPolymorph.class;
+    }
+  }
+
+  public class AVariantPolymorph extends PolymorphDeserializableTest {
+    public String type = 'a';
+    public String aField;
+
+    public AVariantPolymorph() {
+    }
+    public AVariantPolymorph(String commonField, String aField) {
+      super(commonField);
+      this.aField = aField;
+    }
+
+    public override void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'aField' {
+          this.aField = (String) value;
+        }
+        when else {
+          super.setDeserializedField(key, value);
+        }
+      }
+    }
+    public override Map<String, System.Type> getDeserializableFields() {
+      Map<String, System.Type> fields = super.getDeserializableFields();
+      fields.putAll(new Map<String, System.Type>{ 'aField' => String.class });
+      return fields;
+    }
+  }
+  public class BVariantPolymorph extends PolymorphDeserializableTest {
+    public String type = 'b';
+    public String bField;
+
+    public BVariantPolymorph() {
+    }
+    public BVariantPolymorph(String commonField, String bField) {
+      super(commonField);
+      this.bField = bField;
+    }
+
+    public override void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'bField' {
+          this.bField = (String) value;
+        }
+        when else {
+          super.setDeserializedField(key, value);
+        }
+      }
+    }
+    public override Map<String, System.Type> getDeserializableFields() {
+      Map<String, System.Type> fields = super.getDeserializableFields();
+      fields.putAll(new Map<String, System.Type>{ 'bField' => String.class });
+      return fields;
+    }
+  }
+
+  public class ListPolymorphClass implements JSONDeserializer.Deserializable {
+    public List<PolymorphDeserializableTest> ld;
+
+    public void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'ld' {
+          this.ld = (List<PolymorphDeserializableTest>) value;
+        }
+        when else {
+          throw new IllegalArgumentException(
+            'Key [' + key + '] is not supported'
+          );
+        }
+      }
+    }
+    public Map<String, System.Type> getDeserializableFields() {
+      return new Map<String, System.Type>{
+        'ld' => List<PolymorphDeserializableTest>.class
+      };
+    }
+  }
+
+  @isTest
+  public static void throwsWhenInstanciated() {
+    Boolean threw = false;
+    try {
+      new JSONDeserializer();
+    } catch (Exception e) {
+      System.Assert.isTrue(
+        e.getMessage().contains('is not meant to be instanciated')
+      );
+      threw = true;
+    } finally {
+      System.Assert.isTrue(threw);
+    }
+  }
+
   @isTest
   public static void handlesSimpleClass() {
     SimpleClass simple = (SimpleClass) JSONDeserializer.deserialize(
@@ -464,28 +614,45 @@ public with sharing class JSONDeserializerTest {
 
   @isTest
   public static void handlesPolymorphDeserializables() {
-    PolymorphDeserializableTest.ListPolymorphClass root = new PolymorphDeserializableTest.ListPolymorphClass();
+    ListPolymorphClass root = new ListPolymorphClass();
     root.ld = new List<PolymorphDeserializableTest>{
-      new PolymorphDeserializableTest.AVariantPolymorph('1', '1'),
-      new PolymorphDeserializableTest.BVariantPolymorph('2', '2')
+      new AVariantPolymorph('1', '1'),
+      new BVariantPolymorph('2', '2')
     };
 
     String serializedRoot = JSON.serialize(root);
     System.debug(serializedRoot);
 
-    PolymorphDeserializableTest.ListPolymorphClass deserializedRoot = (PolymorphDeserializableTest.ListPolymorphClass) JSONDeserializer.deserialize(
+    ListPolymorphClass deserializedRoot = (ListPolymorphClass) JSONDeserializer.deserialize(
       serializedRoot,
-      PolymorphDeserializableTest.ListPolymorphClass.class
+      ListPolymorphClass.class
     );
-    PolymorphDeserializableTest.AVariantPolymorph a = (PolymorphDeserializableTest.AVariantPolymorph) deserializedRoot.ld.get(
-      0
-    );
-    PolymorphDeserializableTest.BVariantPolymorph b = (PolymorphDeserializableTest.BVariantPolymorph) deserializedRoot.ld.get(
-      1
-    );
+    AVariantPolymorph a = (AVariantPolymorph) deserializedRoot.ld.get(0);
+    BVariantPolymorph b = (BVariantPolymorph) deserializedRoot.ld.get(1);
 
     System.Assert.areEqual(a.commonField, a.aField);
     System.Assert.areEqual(b.commonField, b.bField);
+  }
+
+  @isTest
+  public static void rejectsPolymorphNotProvidingDiscriminator() {
+    Boolean threw = false;
+    try {
+      PolymorphWithoutDiscriminator deserializedRoot = (PolymorphWithoutDiscriminator) JSONDeserializer.deserialize(
+        '{"field":"value"}',
+        PolymorphWithoutDiscriminator.class
+      );
+    } catch (IllegalArgumentException e) {
+      System.Assert.isTrue(
+        e.getMessage()
+          .contains(
+            '`public class YourTypeDiscriminator implements JSONDeserializerDiscriminator`'
+          )
+      );
+      threw = true;
+    } finally {
+      System.Assert.isTrue(threw);
+    }
   }
 
   @isTest
@@ -505,7 +672,7 @@ public with sharing class JSONDeserializerTest {
       Time.newInstance(1, 1, 1, 1),
       null
     };
-    root.o = 'hello there';
+    root.o = new Map<String, Object>{ 'key' => 'value' };
     String seriliazedRoot = JSON.serialize(root);
     System.debug(seriliazedRoot);
 
@@ -519,6 +686,26 @@ public with sharing class JSONDeserializerTest {
       String s = root.lo.get(i) + '=' + deserializedRoot.lo.get(i);
       System.debug(s);
       System.Assert.areEqual(root.lo.get(i), deserializedRoot.lo.get(i));
+    }
+  }
+
+  /**
+   * This test is only for code coverage since i never was able to find an actual case where this happens
+   */
+  @isTest
+  public static void rejectsInvalidPrimitiveValue() {
+    Boolean threw = false;
+    try {
+      JSONParserProxy parser = new JSONParserProxy('{"key":"value"}');
+      parser.nextToken(); // Token is now `START_OBJECT`
+      JSONDeserializerEngine.deserializeAnyPrimitive(parser);
+    } catch (Exception e) {
+      System.Assert.isTrue(
+        e.getMessage().contains('Unexpected token type : START_OBJECT')
+      );
+      threw = true;
+    } finally {
+      System.Assert.isTrue(threw);
     }
   }
 }

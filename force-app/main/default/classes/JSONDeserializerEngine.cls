@@ -33,7 +33,7 @@ public with sharing class JSONDeserializerEngine {
         if (MAP_TYPE.isAssignableFrom(type)) {
           return deserializeMap(type, parser);
         }
-        if (Object.class !== type) {
+        if (Object.class != type) {
           return parser.readValueAs(type);
         }
         return deserializeAnyObject(parser);
@@ -83,11 +83,6 @@ public with sharing class JSONDeserializerEngine {
     JSONParserProxy parser
   ) {
     JSONToken token = parser.getCurrentToken();
-    if (token != JSONToken.START_OBJECT) {
-      throw new UnexpectedException(
-        'Expected a object start here, got ' + token
-      );
-    }
     System.Type actualType = getDeserializableType(type, parser);
     JSONDeserializer.Deserializable instance = (JSONDeserializer.Deserializable) actualType.newInstance();
     Map<String, System.Type> deserializableFields = getDeserializableFields(
@@ -97,11 +92,6 @@ public with sharing class JSONDeserializerEngine {
     token = parser.nextToken();
     while (token != JSONToken.END_OBJECT) {
       // read a field name, and see if we can interpret it
-      if (token != JSONToken.FIELD_NAME) {
-        throw new UnexpectedException(
-          'Expected a fieldname here, got ' + token
-        );
-      }
       String fieldName = parser.getText();
       if (deserializableFields.containsKey(fieldName)) {
         token = parser.nextToken();
@@ -126,6 +116,7 @@ public with sharing class JSONDeserializerEngine {
     return deserializeMap(Map<String, Object>.class, parser);
   }
 
+  @testVisible
   private static Object deserializeAnyPrimitive(JSONParserProxy parser) {
     switch on parser.getCurrentToken() {
       when VALUE_FALSE, VALUE_TRUE {
@@ -177,7 +168,8 @@ public with sharing class JSONDeserializerEngine {
         return null;
       }
       when else {
-        throw new UnexpectedException(
+        // i have never been able to find a case where this happens
+        throw new IllegalArgumentException(
           'Unexpected token type : ' + parser.getCurrentToken()
         );
       }
@@ -196,19 +188,8 @@ public with sharing class JSONDeserializerEngine {
 
     Map<String, Object> instance = (Map<String, Object>) type.newInstance();
 
-    if (token != JSONToken.START_OBJECT) {
-      throw new UnexpectedException(
-        'Expected a object start here, got ' + token
-      );
-    }
     token = parser.nextToken();
     while (token != JSONToken.END_OBJECT) {
-      // read a key, and see if we ca interpret it
-      if (token != JSONToken.FIELD_NAME) {
-        throw new UnexpectedException(
-          'Expected a fieldname here, got ' + token
-        );
-      }
       String key = parser.getText();
 
       token = parser.nextToken();
@@ -233,11 +214,6 @@ public with sharing class JSONDeserializerEngine {
 
     List<Object> instance = (List<Object>) listType.newInstance();
 
-    if (token != JSONToken.START_ARRAY) {
-      throw new UnexpectedException(
-        'Expected a object start here, got ' + token
-      );
-    }
     token = parser.nextToken();
     while (token != JSONToken.END_ARRAY) {
       instance.add(deserializeValue(valueType, parser));
@@ -256,7 +232,7 @@ public with sharing class JSONDeserializerEngine {
       return type;
     }
     System.Type discriminatorType = System.Type.forName(
-      type.toString() + '.Discriminator'
+      type.toString() + 'Discriminator'
     );
     if (
       discriminatorType == null ||
@@ -265,7 +241,7 @@ public with sharing class JSONDeserializerEngine {
       throw new IllegalArgumentException(
         'Polymorph Deserializable [' +
           type +
-          '] must expose a `public class YourType.Discriminator implements JSONDeserializer`'
+          '] must expose a `public class YourTypeDiscriminator implements JSONDeserializerDiscriminator`'
       );
     }
 

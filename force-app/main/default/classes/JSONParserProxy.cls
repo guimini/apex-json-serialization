@@ -46,7 +46,7 @@ public with sharing class JSONParserProxy {
           this.parser.readValueAs(operation.apexType);
         }
         when SKIP_CHILDREN {
-          this.parser.nextToken();
+          this.parser.skipChildren();
         }
       }
     }

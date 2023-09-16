@@ -1,5 +1,7 @@
 global with sharing class JSONDeserializer {
+  @testVisible
   private JSONDeserializer() {
+    throw new TypeException('JSONDeserializer is not meant to be instanciated');
   }
   global static Object deserialize(String jsonString, System.Type type) {
     return JSONDeserializerEngine.deserialize(jsonString, type);
@@ -14,7 +16,8 @@ global with sharing class JSONDeserializer {
   }
 
   /**
-   * Using this interface, you must expose a `public class YourType.Discriminator implements JSONDeserializer.Discriminator`
+   * Using this interface, you must expose a
+   * `public class YourTypeDiscriminator implements JSONDeserializer.Discriminator`
    */
   public interface Polymorph {
   }
