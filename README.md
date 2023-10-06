@@ -2,6 +2,38 @@
 
 This repo offers a better alternative to `JSON.deserialize()` and `JSON.deserializeUntypped()`
 
+# Usage
+
+```
+  /**
+   * Implement the JSONDeserializer.Deserializable on your type
+   */
+  public class DeserializableClass implements JSONDeserializer.Deserializable {
+    private String firstname;
+    public void setDeserializedField(String key, Object value) {
+      switch on key {
+        when 'first_name' {
+          this.firstname = (String) value;
+        }
+        when else {
+          throw new IllegalArgumentException(
+            'Key [' + key + '] is not supported'
+          );
+        }
+      }
+    }
+    public Map<String, System.Type> getDeserializableFields() {
+      return new Map<String, System.Type>{ 'first_name' => String.class };
+    }
+  }
+
+  /** call the deserializer */
+  DeserializableClass simple = (DeserializableClass) JSONDeserializer.deserialize(
+    '{"first_name":"John"}',
+    DeserializableClass.class
+  );
+```
+
 ## Deploy right away
 
 But have a look at the code first. Don't trust random code from the internet ;)
