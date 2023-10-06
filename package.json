@@ -1,6 +1,6 @@
 {
   "name": "@guimini/apex-json-serialization",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A better alternative to `JSON.deserialize()` and `JSON.deserializeUntypped()`",
   "bugs": {
     "url": "https://github.com/guimini/apex-json-serialization/issues"

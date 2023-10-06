@@ -6,7 +6,7 @@ This repo offers a better alternative to `JSON.deserialize()` and `JSON.deserial
 
 But have a look at the code first. Don't trust random code from the internet ;)
 
-<a href="https://githubsfdeploy.herokuapp.com?owner=gaelmotte&repo=apex-json-serialization&ref=main">
+<a href="https://githubsfdeploy.herokuapp.com?owner=guiminie&repo=apex-json-serialization&ref=main">
   <img alt="Deploy to Salesforce"
        src="https://raw.githubusercontent.com/afawcett/githubsfdeploy/master/src/main/webapp/resources/img/deploy.png">
 </a>
