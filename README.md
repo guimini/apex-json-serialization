@@ -22,8 +22,9 @@ Alternatively, you may use this as an npm dependency
 In your sfdx project folder
 
 ```
-npm i @guimini/apex-json-serialization --ignore-scripts
-npm install https://github.com/guimini/apex-json-serialization --ignore-scripts
+npm i @guimini/apex-json-serialization
+OR
+npm install https://github.com/guimini/apex-json-serialization
 ```
 
 #### Mount it as a PackageDirectory
