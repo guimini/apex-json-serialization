@@ -25,6 +25,7 @@ Thanks @andyinthecloud
 
 - [ ] Json Serialization to arbitrary keys
 - [ ] Package
+- [ ] Publish to NPM
 
 ## Known Gotchas
 
