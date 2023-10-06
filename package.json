@@ -1,8 +1,22 @@
 {
-  "name": "salesforce-app",
-  "private": true,
-  "version": "1.0.0",
-  "description": "Salesforce App",
+  "name": "@guimini/apex-json-serialization",
+  "version": "1.0.2",
+  "description": "A better alternative to `JSON.deserialize()` and `JSON.deserializeUntypped()`",
+  "bugs": {
+    "url": "https://github.com/guimini/apex-json-serialization/issues"
+  },
+  "repository": "github:guimini/apex-json-serialization/issue",
+  "homepage": "https://github.com/guimini/apex-json-serialization",
+  "keywords": [
+    "apex",
+    "json",
+    "deserialization",
+    "salesforce"
+  ],
+  "license": "MIT",
+  "files": [
+    "force-app/*"
+  ],
   "scripts": {
     "lint": "eslint **/{aura,lwc}/**",
     "test": "npm run test:unit",
