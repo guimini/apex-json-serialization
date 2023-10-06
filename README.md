@@ -2,7 +2,7 @@
 
 This repo offers a better alternative to `JSON.deserialize()` and `JSON.deserializeUntypped()`
 
-# Usage
+## Usage
 
 ```
   /**
